@@ -135,17 +135,52 @@ The application follows a modern serverless architecture with clear separation o
 
 #### Database Schema
 
+**`roles`** (organizational roles - extensible)
+```sql
+id: text PRIMARY KEY
+name: text NOT NULL
+description: text
+is_system_role: boolean DEFAULT false
+created_at: timestamptz DEFAULT now()
+```
+
+**`privileges`** (specific capabilities)
+```sql
+id: text PRIMARY KEY
+name: text NOT NULL
+description: text
+category: text (events, users, availability, classes, system)
+created_at: timestamptz DEFAULT now()
+```
+
+**`role_privileges`** (default privileges per role)
+```sql
+role_id: text REFERENCES roles(id)
+privilege_id: text REFERENCES privileges(id)
+granted_at: timestamptz DEFAULT now()
+PRIMARY KEY (role_id, privilege_id)
+```
+
 **`profiles`** (extends auth.users)
 ```sql
 id: uuid PRIMARY KEY REFERENCES auth.users
 email: text NOT NULL
 full_name: text NOT NULL
-role: text NOT NULL CHECK (role IN ('admin', 'hr', 'teacher', 'student'))
+role_id: text NOT NULL REFERENCES roles(id)
 avatar_url: text
 notification_preferences: jsonb DEFAULT '{}'
 is_active: boolean DEFAULT true
 created_at: timestamptz DEFAULT now()
 updated_at: timestamptz DEFAULT now()
+```
+
+**`user_privileges`** (additional user-specific privileges)
+```sql
+user_id: uuid REFERENCES profiles(id)
+privilege_id: text REFERENCES privileges(id)
+granted_by: uuid REFERENCES profiles(id)
+granted_at: timestamptz DEFAULT now()
+PRIMARY KEY (user_id, privilege_id)
 ```
 
 **`classes`** (teacher-student assignments)
@@ -325,12 +360,20 @@ CREATE INDEX idx_filter_presets_user ON filter_presets(user_id);
 *   User role in JWT `app_metadata`
 
 **Row Level Security (RLS) Policies:**
-*   **profiles:** Users read own, admins read all
-*   **availability:** Users manage own, admins/HR read all
-*   **events:** Users read participating events, admins/HR read all
-*   **event_requests:** Requestors read own, admins/HR read all
+*   **profiles:** Users read own, users with `view_all_users` privilege read all
+*   **availability:** Users manage own, users with `view_all_availability` privilege read all, teachers with `view_team_availability` can view assigned students
+*   **events:** Users read participating events, users with `view_all_events` privilege read all
+*   **event_requests:** Requestors read own, users with `approve_events` privilege read/manage all
 *   **notifications:** Users access only their own
-*   **audit_logs:** Admins only
+*   **audit_logs:** Users with `view_audit_logs` privilege only
+*   **user_privileges:** Users view own, users with `assign_privileges` can manage all
+
+**Key Privileges:**
+*   **Events:** `approve_events`, `create_events`, `manage_all_events`, `view_all_events`
+*   **Users:** `manage_users`, `assign_privileges`, `view_all_users`
+*   **Availability:** `view_all_availability`, `view_team_availability`
+*   **Classes:** `manage_classes`
+*   **System:** `view_audit_logs`, `manage_templates`
 
 **Supabase Edge Functions:**
 

@@ -11,31 +11,70 @@ This document outlines the features and specifications for the "Event Matcher," 
 
 ## 2. User Roles & Permissions
 
-The application will feature a role-based access control system to ensure users only see relevant information and have appropriate permissions.
+The application features a **flexible roles + privileges model** where organizational roles define identity, and specific privileges grant capabilities. "Admin" is not a role but a set of privileges that can be assigned to any user.
 
-*   **Admin:**
-    *   Has full, unrestricted access to all features and data within the application.
-    *   Can manage user accounts, oversee all schedules, create any type of event, and manage all requests.
+### 2.1. Organizational Roles
 
-*   **Employee:** This is a parent role with several sub-roles:
-    *   **HR:**
-        *   Can view the availability and schedules of all teachers and students.
-        *   Can create and manage events (teacher training, classes).
-        *   Can approve/decline meeting requests with mandatory decline reasons.
-        *   Can assign teachers to student classes.
-        *   Can manage user accounts (create, deactivate, modify roles).
-    *   **Teacher:**
-        *   Can manage their own availability.
-        *   Can view their personal schedule of classes and meetings.
-        *   Can view the availability of students in their assigned classes only.
-        *   Can request meetings with other teachers or assigned students.
-        *   Cannot view or access unassigned students.
+*   **Teacher** (System Role)
+    *   Primary function: Instructors who teach classes
+    *   Default privileges: Can view assigned students' availability
+    *   Can manage own availability and view own schedule
 
-*   **Client (Student):**
-    *   Can manage their own availability.
-    *   Can view their personal schedule of classes.
-    *   Can view the availability of teachers for relevant subjects.
-    *   Can request meetings with a teacher.
+*   **Student** (System Role)
+    *   Primary function: Students enrolled in classes
+    *   Default privileges: None (self-access only)
+    *   Can manage own availability and view own schedule
+
+*   **Marketing**
+    *   Primary function: Marketing team members
+    *   Default privileges: View all events, view all availability
+    *   Can scrub timelines and view weekly calendars
+    *   Can be granted `approve_events` to schedule internal meetings
+
+*   **HR (Human Resources)**
+    *   Primary function: HR team members
+    *   Default privileges: View all events, view all availability, view all users, manage users, manage classes
+    *   Can manage user accounts and class assignments
+    *   Can be granted `approve_events` for full admin capabilities
+
+*   **Operations**
+    *   Primary function: Operations team members
+    *   Default privileges: View all events, view all availability
+    *   Can scrub timelines and view weekly calendars
+    *   Can be granted any privilege as needed
+
+### 2.2. Key Privileges (Admin Capabilities)
+
+These privileges can be granted to any user, regardless of role:
+
+**Event Management:**
+*   `approve_events` - Approve and confirm event requests (primary "admin" privilege)
+*   `create_events` - Create events for others
+*   `manage_all_events` - Edit/delete any event
+*   `view_all_events` - View all events in the system
+
+**User Management:**
+*   `manage_users` - Create, edit, and deactivate users
+*   `assign_privileges` - Grant/revoke privileges to other users
+*   `view_all_users` - View all user profiles
+
+**Availability:**
+*   `view_all_availability` - View everyone's availability
+*   `view_team_availability` - View assigned team members' availability
+
+**Classes:**
+*   `manage_classes` - Create and manage class assignments
+
+**System:**
+*   `view_audit_logs` - View system audit logs
+*   `manage_templates` - Create and edit event templates
+
+### 2.3. Example Privilege Assignments
+
+*   **Marketing Manager** (marketing role + `approve_events` privilege) = Can schedule internal meetings
+*   **HR Manager** (hr role + `approve_events` privilege) = Full admin access
+*   **Operations Lead** (operations role + `manage_templates` privilege) = Can manage event templates
+*   **Teacher** (teacher role, no additional privileges) = Can only view assigned students
 
 ---
 

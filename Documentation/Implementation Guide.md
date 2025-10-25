@@ -18,16 +18,32 @@
 - **Total Duration:** 20-22 weeks (10 sprints)
 - **Phase 0:** 1 week - Foundation & Setup
 - **Phase 1:** 6 weeks - Core MVP (Auth, Availability, Schedule)
-- **Phase 2:** 9 weeks - Feature Expansion (RBAC, Events, Templates)
+- **Phase 2:** 9 weeks - Feature Expansion (Events, Templates)
 - **Phase 3:** 4 weeks - Polish & Testing
 - **Phase 4:** Launch
 
 ---
-AI collaboratiion guide: Ensure proper file organization and scalability, tick boxes directly in the document to mark tasks as completed.
 
-## Phase 0: Foundation & Setup (Sprint 0 - 1 Week)
+## ⚠️ IMPORTANT: Schema Update (October 2025)
 
-### ☐ Human Setup Tasks
+**The application now uses a flexible roles + privileges model.**
+
+**Key Changes:**
+- ✅ Database schema updated with `roles`, `privileges`, `role_privileges`, `user_privileges` tables
+- ✅ RBAC helpers created: `lib/auth/rbac.ts` and `hooks/useAuth.ts`
+- "Admin" is no longer a role - it's a set of privileges (`approve_events`, `manage_users`, etc.)
+- New roles: `teacher`, `student`, `marketing`, `hr`, `operations`
+- Use `useHasPrivilege('approve_events')` instead of checking for 'admin' role
+
+**See:** `SCHEMA_REDESIGN.md` for comprehensive documentation
+
+---
+
+AI collaboration guide: Ensure proper file organization and scalability, tick boxes directly in the document to mark tasks as completed.
+
+## Phase 0: Foundation & Setup (Sprint 0 - 1 Week) ✅ COMPLETE
+
+### Human Setup Tasks
 
 #### 1. Service Accounts Setup
 ```
@@ -175,7 +191,7 @@ Configure Vercel auto-deploy for main and develop branches
 **Context:** Development Plan.md line 36, Technical Specification.md lines 332-342  
 **Files:** .github/workflows/ci.yml, README.md
 
----
+--- PHASE 0 completed. 
 
 ## Phase 1: Core MVP (Sprints 1-3 - 6 Weeks)
 
@@ -212,26 +228,43 @@ Use TanStack Query v5 for data fetching
 **Context:** Technical Specification.md lines 138-149  
 **Files:** types/database.ts, app/profile/page.tsx, lib/api/profiles.ts
 
-**Task 1.4: RBAC System**
+**Task 1.4: RBAC System (Roles + Privileges Model)**
 ```
-Create lib/auth/rbac.ts with hasRole, canAccessRoute functions
-Create hooks/useAuth.ts with useUser, useRole, useHasRole hooks
-Create components/auth/ProtectedRoute.tsx wrapper
-Create app/unauthorized/page.tsx
-```
-**Context:** App Description.md lines 12-39  
-**Files:** lib/auth/rbac.ts, hooks/useAuth.ts
+✅ ALREADY CREATED: lib/auth/rbac.ts with privilege checking functions
+✅ ALREADY CREATED: hooks/useAuth.ts with useUser, useProfile, usePrivileges, useHasPrivilege hooks
+✅ ALREADY CREATED: types/database.ts with RoleId and PrivilegeId types
 
-**Task 1.5: Role Dashboards**
+Still needed:
+Create components/auth/ProtectedRoute.tsx wrapper (checks privileges)
+Create app/unauthorized/page.tsx
+Update middleware.ts to use privilege checks for protected routes
 ```
-Create app/dashboard/page.tsx (redirects by role)
-Create app/dashboard/admin/page.tsx (stats, quick actions)
-Create app/dashboard/hr/page.tsx (similar to admin)
+**Context:** App Description.md lines 12-77, SCHEMA_REDESIGN.md  
+**Files:** lib/auth/rbac.ts ✅, hooks/useAuth.ts ✅, components/auth/ProtectedRoute.tsx, middleware.ts
+
+**Note:** The RBAC system now uses a flexible roles + privileges model:
+- Roles: teacher, student, marketing, hr, operations
+- Privileges: approve_events, create_events, manage_users, etc.
+- Use `useHasPrivilege('approve_events')` instead of checking for 'admin' role
+
+**Task 1.5: Role-Based Dashboards**
+```
+Create app/dashboard/page.tsx (redirects by role and privileges)
 Create app/dashboard/teacher/page.tsx (my classes, schedule)
 Create app/dashboard/student/page.tsx (my schedule, request meeting)
+Create app/dashboard/business/page.tsx (for marketing/hr/operations - calendar view)
+
+Note: No separate "admin" dashboard - users with admin privileges access
+the business dashboard with additional action buttons based on their privileges
 ```
-**Context:** App Description.md lines 80-101  
+**Context:** App Description.md lines 12-77  
 **Files:** app/dashboard/*/page.tsx
+
+**Dashboard Access Logic:**
+- Teachers → /dashboard/teacher
+- Students → /dashboard/student  
+- Marketing/HR/Operations → /dashboard/business
+- Users with `approve_events` privilege see approval buttons in business dashboard
 
 ---
 
@@ -303,37 +336,86 @@ Update lib/api/availability.ts with:
 
 #### 🤖 AI Coding Tasks
 
-**Task 3.1: Schedule Calendar**
+**Task 3.1: Schedule Calendar** ✅ COMPLETE
 ```
-Create components/schedule/ScheduleCalendar.tsx:
-- Day/week/month views
-- Color-coded events (class: blue, meeting: green, training: purple)
-- Hover tooltips
-- Click to open details modal
-Create app/schedule/page.tsx
+✅ Created components/schedule/ScheduleCalendar.tsx:
+- Day/week/month views with FullCalendar
+- Color-coded events (class: blue, meeting: green, training: purple, workshop: amber, event: pink)
+- Hover tooltips and event type legend
+- Click to open detailed event modal with all information
+- Read-only mode (no editing as requested)
+- Real-time updates via Supabase subscriptions
+
+✅ Created app/schedule/page.tsx:
+- Fetches user's events with getMyEvents()
+- Real-time subscriptions for events and participants
+- Time zone selector
+- Back to home button
+- Event counter and loading states
+
+✅ Enhanced app/availability/page.tsx:
+- Added back to home button
+- Added page title for consistency
 ```
 **Context:** App Description.md lines 69-76  
-**Files:** components/schedule/ScheduleCalendar.tsx, app/schedule/page.tsx
+**Files:** components/schedule/ScheduleCalendar.tsx ✅, app/schedule/page.tsx ✅
+**Documentation:** TASK_3_1_COMPLETE.md
 
-**Task 3.2: Event Fetching**
+**Task 3.2: Event Fetching** ✅ COMPLETE
 ```
-Create lib/api/events.ts:
-- getMyEvents(userId, startDate, endDate)
-- getEventDetails(eventId)
-Create lib/filters/events.ts with filtering functions
-Use TanStack Query with caching
+✅ Created lib/api/events.ts with comprehensive event management:
+- getMyEvents(userId, startDate, endDate) - Get user's events
+- getAllEvents(startDate, endDate) - Get all events (admin)
+- getEventsForUsers(userIds[], startDate, endDate) - Get events for specific users
+- getEventDetails(eventId) - Get single event with participants
+- createEvent, updateEvent, deleteEvent - CRUD operations
+- deleteRecurringEvent - Delete recurring series
+- subscribeToEvents, subscribeToEventParticipants - Real-time updates
+
+✅ Created lib/api/schedule.ts with schedule management:
+- getMySchedule - Combined events + availability for user
+- getAllSchedules - All user schedules (admin)
+- getSchedulesForUsers - Schedules for specific users
+- exportScheduleToCSV - Export with recurring expansion
+- exportScheduleToICS - iCalendar export
+
+✅ Created lib/utils/recurring.ts with recurring utilities:
+- expandRecurringEvents - Expand recurring into instances
+- expandRecurringAvailability - Expand recurring availability
+- Proper handling of day_of_week, exception_dates, recurrence_end_date
 ```
 **Context:** Technical Specification.md lines 183-221  
-**Files:** lib/api/events.ts, lib/filters/events.ts
+**Files:** lib/api/events.ts ✅, lib/api/schedule.ts ✅, lib/utils/recurring.ts ✅
+**Documentation:** SPRINT_3_PHASE_1_COMPLETE.md
 
-**Task 3.3: Real-time Updates**
+**Task 3.3: Real-time Updates** ✅ COMPLETE
 ```
-Setup Supabase Realtime subscriptions for events and event_participants
-Update React Query cache on changes
-Show toast notifications for new/updated/deleted events
+✅ Created hooks/useRealtimeEvents.ts - Reusable real-time hook:
+- Automatic Supabase Realtime subscriptions for events and participants
+- Optimistic React Query cache updates
+- Configurable toast notifications with descriptions
+- Custom callbacks for each event type (insert, update, delete)
+- Conditional enabling based on authentication
+- Automatic cleanup on unmount
+
+✅ Enhanced app/schedule/page.tsx:
+- Refactored to use useRealtimeEvents hook
+- Optimistic cache updates for instant UI feedback
+- Detailed toast notifications with event titles
+- Automatic refetch for data consistency
+- Handles event creation, updates, deletion
+- Handles participant addition and removal
+
+Features:
+- Real-time event synchronization across all users
+- Smooth UI updates without page refresh
+- Informative notifications for all changes
+- Efficient cache management with React Query
+- Reusable hook for easy integration in other pages
 ```
 **Context:** Technical Specification.md lines 364-367  
-**Files:** app/schedule/page.tsx
+**Files:** hooks/useRealtimeEvents.ts ✅, app/schedule/page.tsx ✅
+**Documentation:** TASK_3_3_COMPLETE.md
 
 **Task 3.4: Seed Data Script**
 ```
@@ -365,24 +447,66 @@ Update all pages with Suspense and Error Boundaries
 
 ### Sprint 4: RBAC & Teacher Features (2 weeks)
 
-**Task 4.1: Advanced RBAC**
+**Task 4.1: Advanced RBAC** ✅ COMPLETE
 ```
-Create lib/auth/permissions.ts with permission constants
-Create hooks/usePermissions.ts
-Update middleware with permission checks
-Add Server Action permission verification
+✅ Created lib/auth/permissions.ts:
+- Complete permission system with role-based access rules
+- Permission constants for all privileges (events, users, availability, classes)
+- Role-based permission mappings for all 6 roles
+- Route permission definitions
+- Helper functions: hasPrivilege, canAccessRoute, hasAnyPrivilege, etc.
+- Permission error messages
+
+✅ Created hooks/usePermissions.ts:
+- usePermissions hook for component-level permission checks
+- Convenience hooks: useHasPrivilege, useIsAdmin, useIsTeacher, etc.
+- Returns UserPermissions object with all permission methods
+- Memoized for performance
+
+✅ Updated proxy.ts with permission checks:
+- Role-based route protection
+- Fetches user profile to check role
+- Redirects unauthorized users to appropriate dashboard
+- Integrates with permission system
 ```
 **Context:** Development Plan.md line 76  
-**Files:** lib/auth/permissions.ts
+**Files:** lib/auth/permissions.ts ✅, hooks/usePermissions.ts ✅, proxy.ts ✅
 
-**Task 4.2: Teacher Class View**
+**Task 4.2: Teacher Class View** ✅ COMPLETE
 ```
-Create app/dashboard/teacher/classes/page.tsx (list assigned classes)
-Create app/dashboard/teacher/classes/[classId]/page.tsx (class details, students)
-Create components/teacher/StudentAvailabilityViewer.tsx (read-only)
+✅ Created lib/api/classes.ts:
+- getTeacherClasses - Get all classes assigned to teacher
+- getClassDetails - Get single class with full details
+- getClassStudentsWithAvailability - Get students with their availability
+- isTeacherForClass - Check teacher authorization
+- getAllClasses - Admin function to get all classes
+- Real-time subscriptions for classes and enrollments
+
+✅ Created app/dashboard/teacher/classes/page.tsx:
+- List all classes assigned to teacher
+- Real-time updates for class changes
+- Summary statistics (total classes, students, average class size)
+- Empty state for teachers with no classes
+- Click to view class details
+
+✅ Created app/dashboard/teacher/classes/[classId]/page.tsx:
+- Class overview with subject and enrollment count
+- Teacher information display
+- Complete student roster with avatars
+- Authorization check (only assigned teacher can view)
+- Real-time enrollment updates
+- Integration with StudentAvailabilityViewer
+
+✅ Created components/teacher/StudentAvailabilityViewer.tsx:
+- Read-only view of student availability
+- Student selector dropdown
+- Grouped display: recurring vs one-time availability
+- Day-of-week display for recurring slots
+- Exception dates and recurrence end dates
+- Time formatting and date display
 ```
 **Context:** App Description.md lines 82-90  
-**Files:** app/dashboard/teacher/classes/*
+**Files:** lib/api/classes.ts ✅, app/dashboard/teacher/classes/page.tsx ✅, app/dashboard/teacher/classes/[classId]/page.tsx ✅, components/teacher/StudentAvailabilityViewer.tsx ✅
 
 ---
 
@@ -402,7 +526,6 @@ Color-code by user/type
 Create components/admin/FilterPanel.tsx:
 - Filters: user (search), role (checkboxes), event type, date range, subject, class
 - Filter logic: OR within category, AND across categories
-- Save/load filter presets
 - Active filter chips with quick remove
 - Real-time filtering with URL state
 ```
@@ -421,7 +544,7 @@ Add audit logging for admin actions
 
 ---
 
-### Sprint 6: Event Request System (2 weeks)
+### Sprint 6: Event Request System (2 weeks) (deferred)
 
 **Task 6.1: Meeting Request Form**
 ```
@@ -459,26 +582,11 @@ Create app/admin/events/new/page.tsx:
 - Recurring events UI (daily, weekly, monthly, custom patterns)
 - Recurrence range (never, after X, by date)
 - Exception dates selector
-- Preview next 5 occurrences
 - Availability heat map
 - Conflict detection
-- Save as template checkbox
-- File attachments (max 10MB)
 ```
 **Context:** App Description.md lines 142-215, Development Plan.md line 79  
 **Files:** app/admin/events/new/page.tsx
-
-**Task 7.2: Recurring Events Edge Function**
-```
-Create supabase/functions/create-recurring-events/index.ts:
-- Input: event_data, recurrence_pattern, recurrence_end_date
-- Create parent event
-- Generate all child event instances
-- Handle exception dates
-- Return array of created event IDs
-```
-**Context:** Technical Specification.md lines 345-354  
-**Files:** supabase/functions/create-recurring-events/index.ts
 
 ---
 

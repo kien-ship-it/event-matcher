@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
+// import { createClient } from '@supabase/supabase-js'
+// import type { Database } from '@/types/database'
 
 // This script requires SUPABASE_SERVICE_ROLE_KEY to be set
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -10,12 +10,13 @@ if (!supabaseUrl || !supabaseServiceKey) {
   process.exit(1)
 }
 
-const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
+// Supabase client for seeding (will be used when implementing seed logic)
+// const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+//   auth: {
+//     autoRefreshToken: false,
+//     persistSession: false,
+//   },
+// })
 
 async function seedData() {
   console.log('🌱 Starting database seed...')
