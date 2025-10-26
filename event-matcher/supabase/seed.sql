@@ -78,12 +78,18 @@ INSERT INTO auth.users (
   email,
   encrypted_password,
   email_confirmed_at,
+  recovery_sent_at,
+  last_sign_in_at,
   raw_app_meta_data,
   raw_user_meta_data,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  email_change,
+  email_change_token_new,
+  recovery_token
 ) VALUES
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'teacher1@test.com', crypt('test123', gen_salt('bf')), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Teacher One","role_id":"teacher"}', NOW(), NOW()),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'student1@test.com', crypt('test123', gen_salt('bf')), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Student One","role_id":"student"}', NOW(), NOW()),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'student2@test.com', crypt('test123', gen_salt('bf')), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Student Two","role_id":"student"}', NOW(), NOW())
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'teacher1@test.com', crypt('test123', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Teacher One","role_id":"teacher"}', NOW(), NOW(), '', '', '', ''),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'student1@test.com', crypt('test123', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Student One","role_id":"student"}', NOW(), NOW(), '', '', '', ''),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'student2@test.com', crypt('test123', gen_salt('bf')), NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{"full_name":"Student Two","role_id":"student"}', NOW(), NOW(), '', '', '', '')
 ON CONFLICT DO NOTHING;

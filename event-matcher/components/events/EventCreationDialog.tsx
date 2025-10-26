@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { getAllUsers, getRoles, UserWithRole } from '@/lib/api/users'
-import { AvailabilityHeatmap } from './AvailabilityHeatmap'
+import { AvailabilityHeatmap } from '@/components/events/AvailabilityHeatmap'
 import { Search, X, ChevronRight, ChevronLeft } from 'lucide-react'
 
 interface EventCreationDialogProps {
@@ -47,7 +47,7 @@ const EVENT_TYPES: { value: EventType; label: string; description: string }[] = 
   },
 ]
 
-type Step = 'name' | 'type' | 'participants' | 'heatmap'
+type Step = 'name' | 'type' | 'participants' | 'daterange' | 'heatmap'
 
 export function EventCreationDialog({ open, onOpenChange }: EventCreationDialogProps) {
   const [step, setStep] = useState<Step>('name')
@@ -57,6 +57,8 @@ export function EventCreationDialog({ open, onOpenChange }: EventCreationDialogP
   const [selectedRole, setSelectedRole] = useState<string>('all')
   const [selectedParticipants, setSelectedParticipants] = useState<UserWithRole[]>([])
   const [highlightedUsers, setHighlightedUsers] = useState<Set<string>>(new Set())
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   // Fetch users and roles
   const { data: users = [], error: usersError, isLoading: usersLoading } = useQuery({
@@ -95,6 +97,8 @@ export function EventCreationDialog({ open, onOpenChange }: EventCreationDialogP
     } else if (step === 'type') {
       setStep('participants')
     } else if (step === 'participants' && selectedParticipants.length > 0) {
+      setStep('daterange')
+    } else if (step === 'daterange' && startDate && endDate) {
       setStep('heatmap')
     }
   }
@@ -104,8 +108,10 @@ export function EventCreationDialog({ open, onOpenChange }: EventCreationDialogP
       setStep('name')
     } else if (step === 'participants') {
       setStep('type')
-    } else if (step === 'heatmap') {
+    } else if (step === 'daterange') {
       setStep('participants')
+    } else if (step === 'heatmap') {
+      setStep('daterange')
     }
   }
 
@@ -142,19 +148,22 @@ export function EventCreationDialog({ open, onOpenChange }: EventCreationDialogP
     setSelectedRole('all')
     setSelectedParticipants([])
     setHighlightedUsers(new Set())
+    setStartDate('')
+    setEndDate('')
     onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Event</DialogTitle>
           <DialogDescription>
             {step === 'name' && 'Enter the event name'}
             {step === 'type' && 'Select the event type'}
             {step === 'participants' && 'Select participants for the event'}
-            {step === 'heatmap' && 'View participant availability'}
+            {step === 'daterange' && 'Select date range to view availability'}
+            {step === 'heatmap' && 'View participant availability and select event time'}
           </DialogDescription>
         </DialogHeader>
 
@@ -306,7 +315,7 @@ export function EventCreationDialog({ open, onOpenChange }: EventCreationDialogP
                   onClick={handleNext}
                   disabled={selectedParticipants.length === 0}
                 >
-                  View Availability <ChevronRight className="ml-2 h-4 w-4" />
+                  Next <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -338,13 +347,72 @@ export function EventCreationDialog({ open, onOpenChange }: EventCreationDialogP
               <AvailabilityHeatmap
                 participants={selectedParticipants}
                 highlightedUserIds={Array.from(highlightedUsers)}
+                startDate={startDate}
+                endDate={endDate}
               />
 
               <div className="flex justify-between">
                 <Button variant="outline" onClick={handleBack}>
                   <ChevronLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
-                <Button onClick={handleClose}>Done</Button>
+                <Button onClick={handleNext}>
+                  Next <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Date Range Selection */}
+          {step === 'daterange' && (
+            <div className="space-y-4">
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Select the date range when you want the event to occur. The availability heatmap will show participant availability for this period. You can select dates starting from today.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="start-date">Start Date</Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end-date">End Date</Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      min={startDate || new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                </div>
+
+                {/* Date Range Summary */}
+                {startDate && endDate && (
+                  <div className="p-3 border rounded-lg bg-muted/30">
+                    <p className="text-sm">
+                      <strong>Selected Range:</strong> {new Date(startDate).toLocaleDateString()} - {new Date(endDate).toLocaleDateString()}
+                      {' '}({Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} days)
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={handleBack}>
+                  <ChevronLeft className="mr-2 h-4 w-4" /> Back
+                </Button>
+                <Button 
+                  onClick={handleNext}
+                  disabled={!startDate || !endDate || new Date(endDate) < new Date(startDate)}
+                >
+                  View Availability <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             </div>
           )}

@@ -170,6 +170,8 @@ export async function getAllEvents(
 
 /**
  * Get events for specific users (for admin scheduling view)
+ * Properly handles recurring events by fetching all recurring events
+ * and one-off events within the date range
  */
 export async function getEventsForUsers(
   userIds: string[],
@@ -182,35 +184,122 @@ export async function getEventsForUsers(
 
   const supabase = createClient()
 
-  let query = supabase
+  console.log('🔍 getEventsForUsers called with:', {
+    userIds,
+    userCount: userIds.length,
+    startDate,
+    endDate
+  })
+
+  // First, get event IDs for the specified users
+  console.log('📝 Querying event_participants table for user IDs:', userIds)
+  const { data: participantEvents, error: participantError } = await supabase
+    .from('event_participants')
+    .select('event_id, user_id')
+    .in('user_id', userIds)
+
+  if (participantError) {
+    console.error('❌ Error fetching participant events:', participantError)
+    throw new Error('Failed to fetch participant events')
+  }
+
+  console.log('📊 event_participants query result:', {
+    rowsFound: (participantEvents || []).length,
+    data: participantEvents
+  })
+
+  const eventIdsFromParticipants = (participantEvents || []).map((p) => p.event_id)
+  
+  console.log('📋 Event IDs from participants table:', eventIdsFromParticipants)
+  
+  // Also fetch events created by these users (they might not be in event_participants)
+  const { data: createdEvents, error: createdError } = await supabase
+    .from('events')
+    .select('id')
+    .in('created_by', userIds)
+  
+  if (createdError) {
+    console.error('❌ Error fetching created events:', createdError)
+  }
+  
+  const eventIdsFromCreated = (createdEvents || []).map((e) => e.id)
+  console.log('📋 Event IDs from created_by:', eventIdsFromCreated)
+  
+  // Combine both sets of event IDs (remove duplicates)
+  const eventIds = Array.from(new Set([...eventIdsFromParticipants, ...eventIdsFromCreated]))
+  
+  if (eventIds.length === 0) {
+    console.warn('⚠️ No events found for specified users. This means:')
+    console.warn('  1. No events exist in the database, OR')
+    console.warn('  2. Selected users are not participants OR creators of any events')
+    console.warn('  3. Run this SQL to check:')
+    console.warn('     SELECT * FROM events WHERE created_by IN (...) OR id IN (SELECT event_id FROM event_participants WHERE user_id IN (...))')
+    return []
+  }
+
+  console.log('📋 Combined event IDs:', eventIds.length, 'unique events')
+
+  // Fetch recurring events (all of them, regardless of date range)
+  const recurringQuery = supabase
     .from('events')
     .select(`
       *,
-      event_participants!inner(user_id),
       created_by_user:profiles!events_created_by_fkey(full_name, email)
     `)
-    .in('event_participants.user_id', userIds)
+    .in('id', eventIds)
+    .eq('is_recurring', true)
 
-  if (startDate) {
-    query = query.gte('start_time', startDate)
+  // Fetch one-off events that overlap with the date range
+  // An event overlaps if: event_start < range_end AND event_end > range_start
+  let oneOffQuery = supabase
+    .from('events')
+    .select(`
+      *,
+      created_by_user:profiles!events_created_by_fkey(full_name, email)
+    `)
+    .in('id', eventIds)
+    .eq('is_recurring', false)
+
+  // Filter for events that overlap with the date range
+  if (startDate && endDate) {
+    // Event must start before range ends AND end after range starts
+    oneOffQuery = oneOffQuery
+      .lt('start_time', endDate)
+      .gt('end_time', startDate)
+  } else if (startDate) {
+    // If only startDate, get events that end after it
+    oneOffQuery = oneOffQuery.gt('end_time', startDate)
+  } else if (endDate) {
+    // If only endDate, get events that start before it
+    oneOffQuery = oneOffQuery.lt('start_time', endDate)
   }
 
-  if (endDate) {
-    query = query.lte('end_time', endDate)
+  // Execute both queries in parallel
+  const [recurringResult, oneOffResult] = await Promise.all([
+    recurringQuery,
+    oneOffQuery
+  ])
+
+  if (recurringResult.error) {
+    console.error('Error fetching recurring events for users:', recurringResult.error)
+    throw new Error('Failed to fetch recurring events')
   }
 
-  query = query.order('start_time', { ascending: true })
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error fetching events for users:', error)
-    throw new Error('Failed to fetch events')
+  if (oneOffResult.error) {
+    console.error('Error fetching one-off events for users:', oneOffResult.error)
+    throw new Error('Failed to fetch one-off events')
   }
+
+  // Combine both result sets
+  const allEvents = [...(recurringResult.data || []), ...(oneOffResult.data || [])]
+  
+  console.log('getEventsForUsers: Found', allEvents.length, 'events')
+  console.log('  - Recurring:', (recurringResult.data || []).length)
+  console.log('  - One-off:', (oneOffResult.data || []).length)
 
   // Fetch participants for each event
   const eventsWithParticipants = await Promise.all(
-    (data || []).map(async (event) => {
+    allEvents.map(async (event) => {
       const { data: participants } = await supabase
         .from('event_participants')
         .select(`
